@@ -1,16 +1,22 @@
 from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import status
 from rest_framework.filters import OrderingFilter
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet
-from rest_framework.generics import CreateAPIView, ListAPIView, UpdateAPIView, DestroyAPIView, RetrieveAPIView
+from rest_framework.generics import CreateAPIView, ListAPIView, UpdateAPIView, DestroyAPIView, RetrieveAPIView, \
+    get_object_or_404
 
-from lms.models import Course, Lesson, Payment
+from lms.models import Course, Lesson, Payment, CourseSubscription
+from lms.paginators import CustomPagination
 from lms.serializers import CourseSerializer, LessonSerializer, CourseDetailSerializer, PaymentSerializer
 from users.permissions import IsModer, IsOwner
 
 
 class CourseViewSet(ModelViewSet):
     queryset = Course.objects.all()
+    pagination_class = CustomPagination
 
     def get_serializer_class(self):
         if self.action == "retrieve":
@@ -33,6 +39,24 @@ class CourseViewSet(ModelViewSet):
         return super().get_permissions()
 
 
+class CourseSubscriptionView(APIView):
+    def post(self, request, pk):
+        user = request.user
+        course = get_object_or_404(Course, pk=pk)
+        subscription, created = CourseSubscription.objects.get_or_create(
+            user=user,
+            course=course
+        )
+
+        if created:
+            message = "Подписка добавлена"
+        else:
+            subscription.delete()
+            message = "Подписка удалена"
+
+        return Response({"message": message}, status=status.HTTP_200_OK)
+
+
 class LessonCreateAPIView(CreateAPIView):
     queryset = Lesson.objects.all()
     serializer_class = LessonSerializer
@@ -47,6 +71,7 @@ class LessonCreateAPIView(CreateAPIView):
 class LessonListAPIView(ListAPIView):
     queryset = Lesson.objects.all()
     serializer_class = LessonSerializer
+    pagination_class = CustomPagination
 
 
 class LessonUpdateAPIView(UpdateAPIView):
@@ -58,7 +83,7 @@ class LessonUpdateAPIView(UpdateAPIView):
 class LessonDestroyAPIView(DestroyAPIView):
     queryset = Lesson.objects.all()
     serializer_class = LessonSerializer
-    permission_classes = (IsAuthenticated, IsOwner, ~IsModer)
+    permission_classes = (IsAuthenticated, IsOwner)
 
 
 class LessonRetrieveAPIView(RetrieveAPIView):
