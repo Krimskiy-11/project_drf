@@ -1,7 +1,7 @@
 from rest_framework.fields import SerializerMethodField
 from rest_framework.serializers import ModelSerializer, CharField
 
-from lms.models import Course, Lesson, Payment, CourseSubscription
+from lms.models import Course, Lesson, Payment, CourseSubscription, CoursePayment
 from lms.validators import validate_forbidden_link
 
 
@@ -45,3 +45,8 @@ class CourseDetailSerializer(ModelSerializer):
     class Meta:
         model = Course
         fields = ("id", "total", "description", "count_lesson_in_course", "lessons", "is_subscribed")
+
+class CoursePaymentSerializer(ModelSerializer):
+    class Meta:
+        model = CoursePayment
+        fields = "__all__"

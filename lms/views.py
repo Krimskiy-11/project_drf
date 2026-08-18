@@ -8,9 +8,11 @@ from rest_framework.viewsets import ModelViewSet
 from rest_framework.generics import CreateAPIView, ListAPIView, UpdateAPIView, DestroyAPIView, RetrieveAPIView, \
     get_object_or_404
 
-from lms.models import Course, Lesson, Payment, CourseSubscription
+from lms.models import Course, Lesson, Payment, CourseSubscription, CoursePayment
 from lms.paginators import CustomPagination
-from lms.serializers import CourseSerializer, LessonSerializer, CourseDetailSerializer, PaymentSerializer
+from lms.serializers import CourseSerializer, LessonSerializer, CourseDetailSerializer, PaymentSerializer, \
+    CoursePaymentSerializer
+from lms.services import create_stripe_course, create_stripe_price, create_stripe_session
 from users.permissions import IsModer, IsOwner
 
 
@@ -118,3 +120,17 @@ class PaymentDestroyAPIView(DestroyAPIView):
 class PaymentRetrieveAPIView(RetrieveAPIView):
     queryset = Payment.objects.all()
     serializer_class = PaymentSerializer
+
+
+class CoursePaymentCreateAPIView(CreateAPIView):
+    queryset = CoursePayment.objects.all()
+    serializer_class = CoursePaymentSerializer
+
+    def perform_create(self, serializer):
+        c_payment = serializer.save(user=self.request.user)
+        course = create_stripe_course(c_payment.course.total)
+        price = create_stripe_price(c_payment.amount, course)
+        session_id, pay_link = create_stripe_session(price)
+        c_payment.session_id = session_id
+        c_payment.link = pay_link
+        c_payment.save()
